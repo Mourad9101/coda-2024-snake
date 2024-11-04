@@ -5,9 +5,9 @@
 
 void initialiserSerpent(Serpent* serpent) {
     serpent->tete = (Segment*)malloc(sizeof(Segment));
-    serpent->tete->x = 4; // Position de départ
+    serpent->tete->x = 4;
     serpent->tete->y = 4;
-    serpent->tete->suivant = NULL; // Initialisation de suivant à NULL
+    serpent->tete->suivant = NULL;
     serpent->longueur = 1;
 }
 
