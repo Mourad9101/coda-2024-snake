@@ -13,10 +13,10 @@ void initialiserSerpent(Serpent* serpent) {
 
 void ajouterSegment(Serpent* serpent) {
     Segment* nouveauSegment = (Segment*)malloc(sizeof(Segment));
-    nouveauSegment->x = serpent->tete->x; // Initialiser à la position de la tête
+    nouveauSegment->x = serpent->tete->x;
     nouveauSegment->y = serpent->tete->y;
-    nouveauSegment->suivant = serpent->tete; // Le nouveau segment pointe vers la tête actuelle
-    serpent->tete = nouveauSegment; // La tête devient le nouveau segment
+    nouveauSegment->suivant = serpent->tete;
+    serpent->tete = nouveauSegment;
     serpent->longueur++;
 }
 
@@ -32,18 +32,15 @@ bool estSurSerpent(Serpent* serpent, int x, int y) {
 }
 
 void deplacerSerpent(Serpent* serpent, int nouvelleX, int nouvelleY) {
-    // Déplace chaque segment à la position de celui qui le précède
     Segment* courant = serpent->tete;
     int precedentX, precedentY;
 
-    // Déplacer la tête
     precedentX = courant->x;
     precedentY = courant->y;
     courant->x = nouvelleX;
     courant->y = nouvelleY;
     courant = courant->suivant;
 
-    // Déplacer le reste des segments
     while (courant != NULL) {
         int tempX = courant->x;
         int tempY = courant->y;
