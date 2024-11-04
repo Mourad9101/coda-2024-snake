@@ -1,87 +1,77 @@
-#include <stdlib.h>
-#include <stdio.h>
 #include "struct.h"
+#include <stdlib.h>
+#include <stdbool.h>
+#include <SDL2/SDL.h>
 
 void initialiserSerpent(Serpent* serpent) {
-    serpent->tete = malloc(sizeof(Segment));
-    serpent->tete->x = 12;
-    serpent->tete->y = 15;
-    Segment* segment2 = malloc(sizeof(Segment));
-    segment2->x = 13;
-    segment2->y = 15;
-    serpent->tete->next = segment2;
-
-    Segment* segment3 = malloc(sizeof(Segment));
-    segment3->x = 14;
-    segment3->y = 15;
-    segment2->next = segment3;
-
-    segment3->next = NULL;
+    serpent->tete = (Segment*)malloc(sizeof(Segment));
+    serpent->tete->x = 4; // Position de départ
+    serpent->tete->y = 4;
+    serpent->tete->suivant = NULL; // Initialisation de suivant à NULL
+    serpent->longueur = 1;
 }
 
-int estSurSerpent(Serpent* serpent, int x, int y) {
-    Segment* segment = serpent->tete;
-    while (segment != NULL) {
-        if (segment->x == x && segment->y == y) {
-            return 1;
+void ajouterSegment(Serpent* serpent) {
+    Segment* nouveauSegment = (Segment*)malloc(sizeof(Segment));
+    nouveauSegment->x = serpent->tete->x; // Initialiser à la position de la tête
+    nouveauSegment->y = serpent->tete->y;
+    nouveauSegment->suivant = serpent->tete; // Le nouveau segment pointe vers la tête actuelle
+    serpent->tete = nouveauSegment; // La tête devient le nouveau segment
+    serpent->longueur++;
+}
+
+bool estSurSerpent(Serpent* serpent, int x, int y) {
+    Segment* courant = serpent->tete;
+    while (courant != NULL) {
+        if (courant->x == x && courant->y == y) {
+            return true;
         }
-        segment = segment->next;
+        courant = courant->suivant;
     }
-    return 0;
+    return false;
 }
 
-int estCollision(Serpent* serpent) {
-    if (estSurSerpent(serpent, serpent->tete->x, serpent->tete->y)) {
-        return 1;
-    }
+void deplacerSerpent(Serpent* serpent, int nouvelleX, int nouvelleY) {
+    // Déplace chaque segment à la position de celui qui le précède
+    Segment* courant = serpent->tete;
+    int precedentX, precedentY;
 
-    if (serpent->tete->x < 0 || serpent->tete->x >= (800 / 32) || 
-        serpent->tete->y < 0 || serpent->tete->y >= (800 / 32)) {
-        return 1;
-    }
+    // Déplacer la tête
+    precedentX = courant->x;
+    precedentY = courant->y;
+    courant->x = nouvelleX;
+    courant->y = nouvelleY;
+    courant = courant->suivant;
 
-    return 0;
+    // Déplacer le reste des segments
+    while (courant != NULL) {
+        int tempX = courant->x;
+        int tempY = courant->y;
+        courant->x = precedentX;
+        courant->y = precedentY;
+        precedentX = tempX;
+        precedentY = tempY;
+        courant = courant->suivant;
+    }
 }
 
-void deplacerSerpent(Serpent* serpent, int direction) {
-    if (serpent->tete == NULL) return; 
-
-    int ancienX = serpent->tete->x;
-    int ancienY = serpent->tete->y;
-
-    switch (direction) {
-        case 0:
-            serpent->tete->x += 1;
-            break;
-        case 1:
-            serpent->tete->x -= 1;
-            break;
-        case 2:
-            serpent->tete->y -= 1;
-            break;
-        case 3:
-            serpent->tete->y += 1;
-            break;
+void libererSerpent(Serpent* serpent) {
+    Segment* courant = serpent->tete;
+    while (courant != NULL) {
+        Segment* temp = courant;
+        courant = courant->suivant;
+        free(temp);
     }
+    serpent->tete = NULL;
+    serpent->longueur = 0;
+}
 
-    if (estCollision(serpent)) {
-        printf("Collision !\n");
-        return;
-    }
-    Segment* segmentActuel = serpent->tete->next;
-    Segment* segmentPrecedent = serpent->tete;
-
-    while (segmentActuel != NULL) {
-        int tempX = segmentActuel->x;
-        int tempY = segmentActuel->y;
-
-        segmentActuel->x = ancienX;
-        segmentActuel->y = ancienY;
-
-        ancienX = tempX;
-        ancienY = tempY;
-
-        segmentPrecedent = segmentActuel;
-        segmentActuel = segmentActuel->next;
+void afficherSerpent(Serpent* serpent, SDL_Renderer* renderer) {
+    Segment* courant = serpent->tete;
+    while (courant != NULL) {
+        SDL_Rect rect = {courant->x * 32, courant->y * 32, 32, 32};
+        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+        SDL_RenderFillRect(renderer, &rect);
+        courant = courant->suivant;
     }
 }

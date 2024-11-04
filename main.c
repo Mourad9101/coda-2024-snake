@@ -1,87 +1,125 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <SDL2/SDL.h>
 #include "struct.h"
 
-int main(int argc, char *argv[]) {
-    // Initialisation de SDL
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) < 0) {
-        printf("Erreur lors de l'initialisation de la SDL : %s\n", SDL_GetError());
-        return 1;
-    }
+void afficherTexte(SDL_Renderer* renderer, const char* message, TTF_Font* font, SDL_Color color, int x, int y) {
+    SDL_Surface* surface = TTF_RenderText_Solid(font, message, color);
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+    
+    SDL_Rect rect;
+    rect.x = x;
+    rect.y = y;
+    rect.w = surface->w;
+    rect.h = surface->h;
 
-    // Création de la fenêtre
-    SDL_Window* window = SDL_CreateWindow("SNAKE GAME", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 800, SDL_WINDOW_OPENGL);
-    if (window == NULL) {
-        printf("Erreur lors de la création de la fenêtre : %s\n", SDL_GetError());
-        SDL_Quit();
-        return 1;
-    }
+    SDL_RenderCopy(renderer, texture, NULL, &rect);
 
-    // Création du renderer
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    if (renderer == NULL) {
-        printf("Erreur lors de la création du renderer : %s\n", SDL_GetError());
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 1;
-    }
+    SDL_DestroyTexture(texture);
+    SDL_FreeSurface(surface);
+}
 
-    // Initialisation du serpent
+bool serpentSeToujours(Serpent* serpent, int nouvelleX, int nouvelleY) {
+    Segment* courant = serpent->tete->suivant;
+    while (courant != NULL) {
+        if (courant->x == nouvelleX && courant->y == nouvelleY) {
+            return true;
+        }
+        courant = courant->suivant;
+    }
+    return false;
+}
+
+int main(int argc, char* argv[]) {
+    SDL_Init(SDL_INIT_VIDEO);
+    TTF_Init();
+    SDL_Window* window = SDL_CreateWindow("Snake Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 800, 0);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
+
+    TTF_Font* font = TTF_OpenFont("path/to/font.ttf", 24);
     Serpent serpent;
     initialiserSerpent(&serpent);
-    int direction = -1; 
-    int lastDirection = -1; 
-    ajouterSegment(&serpent);
 
-    // Initialisation de la pomme
     Pomme pomme;
-    initialiserPomme(&pomme, 800, 800, &serpent);
+    srand(time(NULL));
+    genererPomme(&pomme, 800, 800);
 
-    // Variables pour le timing
-    Uint32 startTime = SDL_GetTicks();
-    int deplacementIntervalle = 125;
+    bool running = true;
+    bool gameOver = false;
+    SDL_Event event;
+    int directionX = 1, directionY = 0;
+    int directionPrecedenteX = directionX;
+    int directionPrecedenteY = directionY;
 
-    // Boucle principale
-    SDL_bool running = SDL_TRUE;
     while (running) {
-        SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
-                running = SDL_FALSE;
-            } else if (event.type == SDL_KEYDOWN) {
-                if (event.key.keysym.scancode == SDL_SCANCODE_RIGHT && lastDirection != 1) {
-                    direction = 0;
-                } else if (event.key.keysym.scancode == SDL_SCANCODE_LEFT && lastDirection != 0) {
-                    direction = 1;
-                } else if (event.key.keysym.scancode == SDL_SCANCODE_UP && lastDirection != 3) {
-                    direction = 2;
-                } else if (event.key.keysym.scancode == SDL_SCANCODE_DOWN && lastDirection != 2) {
-                    direction = 3;
+                running = false;
+            }
+            if (event.type == SDL_KEYDOWN) {
+                switch (event.key.keysym.sym) {
+                    case SDLK_UP:
+                        if (directionPrecedenteY != 1) {
+                            directionX = 0; directionY = -1;
+                        }
+                        break;
+                    case SDLK_DOWN:
+                        if (directionPrecedenteY != -1) {
+                            directionX = 0; directionY = 1;
+                        }
+                        break;
+                    case SDLK_LEFT:
+                        if (directionPrecedenteX != 1) {
+                            directionX = -1; directionY = 0;
+                        }
+                        break;
+                    case SDLK_RIGHT:
+                        if (directionPrecedenteX != -1) { 
+                            directionX = 1; directionY = 0;
+                        }
+                        break;
                 }
             }
         }
 
-        Uint32 currentTime = SDL_GetTicks();
-        if (currentTime - startTime > deplacementIntervalle) {
-            deplacerSerpent(&serpent, direction);
-            if (direction != -1) {
-                lastDirection = direction;
+        int nouvelleTeteX = serpent.tete->x + directionX;
+        int nouvelleTeteY = serpent.tete->y + directionY;
+
+        if (nouvelleTeteX < 0 || nouvelleTeteX >= 800 / 32 || 
+            nouvelleTeteY < 0 || nouvelleTeteY >= 800 / 32 || 
+            serpentSeToujours(&serpent, nouvelleTeteX, nouvelleTeteY)) {
+            gameOver = true;
+        } else {
+
+            deplacerSerpent(&serpent, nouvelleTeteX, nouvelleTeteY);
+
+            if (serpent.tete->x == pomme.x && serpent.tete->y == pomme.y) {
+                ajouterSegment(&serpent);
+                genererPomme(&pomme, 800, 800);
             }
-            startTime = currentTime;
+
+            directionPrecedenteX = directionX;
+            directionPrecedenteY = directionY;
+
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+            SDL_RenderClear(renderer);
+            afficherSerpent(&serpent, renderer);
+            afficherPomme(&pomme, renderer);
+
+            if (gameOver) {
+                SDL_Color textColor = {255, 0, 0, 255};
+                afficherTexte(renderer, "Game Over! Vous vous êtes mordu.", font, textColor, 100, 400);
+            }
+
+            SDL_RenderPresent(renderer);
         }
 
-        // Efface l'écran
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_Rect bordure = {0, 0, 800, 800};
+        SDL_RenderDrawRect(renderer, &bordure);
 
-        // Affichage du serpent et de la pomme
-        afficherSerpent(renderer, &serpent);
-        afficherPomme(renderer, &pomme);
-
-        SDL_RenderPresent(renderer);
+        SDL_Delay(125);
     }
 
+    TTF_CloseFont(font);
+    TTF_Quit();
     libererSerpent(&serpent);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
